@@ -1,12 +1,10 @@
-import axios, { AxiosInstance } from "axios";
+import axios from "axios";
 import moment from "moment";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useReducer } from "react";
 import { ECrypto, ESpan, ECurrency, IFeed } from "../types";
 // @ts-ignore
-// const { convertXML } = require("simple-xml-to-json");
 import XMLParser from "react-xml-parser";
-import { newsXML } from "./news";
-import { INewsResponse } from "../types/index";
+import { IState } from "../types/index";
 
 const newsClient = axios.create({
   baseURL: "https://news.bitcoin.com/feed/",
@@ -16,12 +14,39 @@ const feedClient = axios.create({
   baseURL: "https://index-api.bitcoin.com/api/v0/",
 });
 
+const reducer = (
+  state: IState,
+  action: {
+    type: "news" | "feed" | "crypto" | "currency" | "historicalFeed";
+    payload: any;
+  }
+): IState => {
+  switch (action.type) {
+    case "news": {
+      return { ...state, news: action.payload };
+    }
+    case "feed": {
+      return { ...state, feed: action.payload };
+    }
+    case "crypto": {
+      return { ...state, base: action.payload };
+    }
+    case "currency": {
+      return { ...state, price: action.payload };
+    }
+    case "historicalFeed": {
+      return { ...state, historicalFeed: action.payload };
+    }
+    default: {
+      return state;
+    }
+  }
+};
 export const useBitcoin = () => {
-  const [news, setNews] = useState<INewsResponse>({} as INewsResponse);
-  const [feed, setFeed] = useState<IFeed[]>([]);
-  const [base, setBase] = useState(ECrypto.BCH);
-  const [price, setPrice] = useState(ECurrency.USD);
-  const [historicalFeed, setHistoricalFeed] = useState<IFeed[]>([]);
+  const [state, dispatch] = useReducer(reducer, {
+    base: ECrypto.BCH,
+    price: ECurrency.USD,
+  } as IState);
 
   const getAllFeed = useCallback(async (crypto: ECrypto): Promise<IFeed[]> => {
     return feedClient
@@ -33,32 +58,34 @@ export const useBitcoin = () => {
           return {
             time: moment(item[0]).format("DD/MM/YY"),
             feed: Number(item[1]),
-            base,
-            price,
+            base: state.base,
+            price: state.price,
           };
         });
-        setHistoricalFeed(values);
+        dispatch({ type: "historicalFeed", payload: values });
         return values;
       });
   }, []);
 
   useEffect(() => {
-    getAllFeed(base).then(setFeed);
+    getAllFeed(state.base).then((p) => {
+      dispatch({ type: "feed", payload: p });
+    });
   }, []);
 
   const getPrice = (p?: ECurrency) => {
     if (!p) {
-      return price;
+      return state.price;
     }
-    setPrice(p);
+    dispatch({ type: "currency", payload: p });
     return p;
   };
 
   const getBase = (p?: ECrypto) => {
     if (!p) {
-      return base;
+      return state.base;
     }
-    setBase(p);
+    dispatch({ type: "crypto", payload: p });
     return p;
   };
   const getLatestNews = async () => {
@@ -73,7 +100,7 @@ export const useBitcoin = () => {
   useEffect(() => {
     getLatestNews().then(async (data) => {
       const parsedNews = new XMLParser().parseFromString(data);
-      setNews(parsedNews);
+      dispatch({ type: "news", payload: parsedNews });
     });
   }, []);
 
@@ -81,15 +108,17 @@ export const useBitcoin = () => {
     const resp = await feedClient.get(
       getBase(crypto) + "/" + "price" + "/" + getPrice(currency)
     );
-    setFeed([
+
+    const payload = [
       {
         time: moment.unix(resp.data.stamp).format("DD/MM/YY"),
         feed: resp.data.price,
         base: getBase(crypto),
         price: getPrice(currency),
       },
-    ]);
-    return [resp.data];
+    ];
+    dispatch({ type: "feed", payload });
+    return payload;
   };
 
   const getHistoricalFeed = async (
@@ -97,14 +126,14 @@ export const useBitcoin = () => {
     currency = ECurrency.USD,
     crypto = ECrypto.BCH
   ) => {
-    let data = historicalFeed;
-    if (crypto !== base) {
+    let data = state.historicalFeed;
+    if (crypto !== state.base) {
       data = await getAllFeed(crypto);
-      setFeed(data);
-      setBase(crypto);
+      dispatch({ type: "feed", payload: data });
+      dispatch({ type: "crypto", payload: crypto });
     }
-    if (currency !== price) {
-      setPrice(currency);
+    if (currency !== state.price) {
+      dispatch({ type: "currency", payload: currency });
     }
     let demandedFeed = data;
     if (data && data.length > 0) {
@@ -139,12 +168,12 @@ export const useBitcoin = () => {
       }
     }
 
-    setFeed(demandedFeed);
+    dispatch({ type: "feed", payload: demandedFeed });
   };
 
   return {
-    news,
-    feed,
+    news: state.news,
+    feed: state.feed,
     getLatestFeed,
     getHistoricalFeed,
     getLatestNews,

@@ -1,19 +1,17 @@
 import React, { useState } from "react";
-import { useService } from "../service";
 import { Centered } from "../components/styled/Centered";
 import { BitcoinChart } from "./containers/Chart";
 import { BitcoinNews } from "./containers/News";
 
 function App() {
-  const { bitcoin } = useService();
   const [display, setDisplay] = useState<"charts" | "news">("news");
   return (
     <div>
       <select
         style={{
           position: "absolute",
-          left: 0,
-          top: 0,
+          left: 10,
+          top: 10,
         }}
         value={display}
         onChange={(e) => {

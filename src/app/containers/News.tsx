@@ -1,15 +1,13 @@
-import { useState } from "react";
 import { Scrollable } from "../../components/styled/Scrollable";
-import { ECrypto, ECurrency, ESpan } from "../../types";
-import { useBitcoin } from "../../service/bitcoin";
 import moment from "moment";
+import { useService } from "../../service";
 
 interface Props {
   display: boolean;
 }
 
 export const BitcoinNews = (props: Props) => {
-  const bitcoin = useBitcoin();
+  const { bitcoin } = useService();
 
   return (
     <div

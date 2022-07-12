@@ -67,6 +67,13 @@ export type TItemNames =
   | "bnmedia:barker_title"
   | "bnmedia:late_barker_title";
 
+export interface IState {
+  news: INewsResponse;
+  feed: IFeed[];
+  historicalFeed: IFeed[];
+  base: ECrypto;
+  price: ECurrency;
+}
 export interface INewsResponse {
   attributes: any;
   children: INewsResponse[];
